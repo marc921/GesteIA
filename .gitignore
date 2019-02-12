@@ -1,9 +1,10 @@
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-Assets/AssetStoreTools*
+Unity_gesteIA/[Ll]ibrary/
+Unity_gesteIA/[Tt]emp/
+Unity_gesteIA/[Oo]bj/
+Unity_gesteIA/[Bb]uild/
+Unity_gesteIA/[Bb]uilds/
+Unity_gesteIA/Assets/AssetStoreTools*
+Unity_gesteIA/Assets/Data/
 Data/
 
 # Visual Studio cache directory
