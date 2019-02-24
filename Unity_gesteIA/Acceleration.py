@@ -4,15 +4,20 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
+from utils import norm, get_velocity, get_acc, get_acc_2, convolve_xy, dt
+
 # Parameters
 width = 480
 height = 270
 openpose_files_path = os.path.join('.', 'OpenposeFiles')
-dt = 1/25
+scale_factor = 10000
+left_hand_idx = 7
+right_hand_idx = 4
+gaussian_kernel_7 = [0.006, 0.061, 0.242, 0.383, 0.242, 0.061, 0.006]
 
 
 def process_raw_list(l):
-    l_rescale = [l[i] / 10000 for i in range(len(l))]
+    l_rescale = [l[i] / scale_factor for i in range(len(l))]
     x = []
     y = []
     confidence = []
@@ -28,7 +33,7 @@ def process_raw_list(l):
 
 def get_hands(l):
     x, y, _ = process_raw_list(l)
-    return {"x": x[7], "y": y[7]}, {"x": x[4], "y": y[4]}
+    return {"x": x[left_hand_idx], "y": y[left_hand_idx]}, {"x": x[right_hand_idx], "y": y[right_hand_idx]}
 
 
 def process_folder(folder_path):
@@ -77,75 +82,24 @@ def process_folder(folder_path):
 
 person_1, person_2 = process_folder(openpose_files_path)
 
-x = [dt*t for t in range(len(person_1["left_hand"]["y"]))]
+t = [dt*i for i in range(len(person_1["left_hand"]["y"]))]
 
-# plt.plot(x, person_1["left_hand"]["y"])
-# plt.show()
+x_rh1, y_rh1 = convolve_xy(person_1["right_hand"]["x"], person_1["right_hand"]["y"], gaussian_kernel_7)
+x_lh1, y_lh1 = convolve_xy(person_1["left_hand"]["x"], person_1["left_hand"]["y"], gaussian_kernel_7)
+x_rh2, y_rh2 = convolve_xy(person_2["right_hand"]["x"], person_2["right_hand"]["y"], gaussian_kernel_7)
+x_lh2, y_lh2 = convolve_xy(person_2["left_hand"]["x"], person_2["left_hand"]["y"], gaussian_kernel_7)
 
+plt.plot(t, y_rh1, 'r-')
+plt.plot(t, y_lh1, 'b-')
+plt.show()
 
-def norm(x, y):
-    return math.sqrt(x**2 + y**2)
+a_r1 = get_acc_2(x_rh1, y_rh1)
+a_l1 = get_acc_2(x_lh1, y_lh1)
+a_r2 = get_acc_2(x_rh2, y_rh2)
+a_l2 = get_acc_2(x_lh2, y_lh2)
 
+t_a = [dt*i for i in range(len(a_r1))]
 
-def get_velocity(x, y):
-    v = []
-    for i in range(len(x) - 1):
-        vx = (x[i+1] - x[i]) / dt
-        vy = (y[i+1] - y[i]) / dt
-        v += [norm(vx, vy)]
-    return v
-
-person_1["right_hand"]["x"] = np.convolve(person_1["right_hand"]["x"], [0.006, 0.061, 0.242, 0.383, 0.242, 0.061, 0.006], mode='same')
-person_1["right_hand"]["y"] = np.convolve(person_1["right_hand"]["y"], [0.006, 0.061, 0.242, 0.383, 0.242, 0.061, 0.006], mode='same')
-
-
-v_left_1 = get_velocity(person_1["left_hand"]["x"], person_1["left_hand"]["y"])
-v_right_1 = get_velocity(person_1["right_hand"]["x"], person_1["right_hand"]["y"])
-v_left_2 = get_velocity(person_2["left_hand"]["x"], person_2["left_hand"]["y"])
-v_right_2 = get_velocity(person_2["right_hand"]["x"], person_2["right_hand"]["y"])
-
-
-def get_acc(v):
-    acc = []
-    for i in range(len(v) - 1):
-        acc += [(v[i+1] - v[i]) / dt]
-    return acc
-
-
-def get_acc_2(x, y):
-    acc = []
-    for i in range(len(x) - 2):
-        ax = 2*(x[i+2] - 2 * x[i+1] + x[i]) / (dt**2)
-        ay = 2*(y[i+2] - 2 * y[i+1] + y[i]) / (dt**2)
-        acc += [norm(ax, ay)]
-    return acc
-
-
-acc_left_1 = get_acc(v_left_1)
-acc_right_1 = get_acc(v_right_1)
-acc_left_2 = get_acc(v_left_2)
-acc_right_2 = get_acc(v_right_2)
-
-x = [dt * i for i in range(len(acc_left_1))]
-
-# plt.plot(x, acc_left_1)
-# plt.plot(x, acc_right_1)
-# plt.plot(x, acc_left_2)
-# plt.plot(x, acc_right_2)
-
-# plt.show()
-
-acc_left_1 = get_acc_2(person_1["left_hand"]["x"], person_1["left_hand"]["y"])
-acc_right_1 = get_acc_2(person_1["right_hand"]["x"], person_1["right_hand"]["y"])
-acc_left_2 = get_acc_2(person_2["left_hand"]["x"], person_2["left_hand"]["y"])
-acc_right_2 = get_acc_2(person_2["right_hand"]["x"], person_2["right_hand"]["y"])
-
-plt.plot(x, acc_left_1)
-plt.plot(x, acc_right_1)
-# plt.plot(x, acc_left_2)
-# plt.plot(x, acc_right_2)
-
-#acc_diff = [acc_left_1[i] - acc_right_1[i] for i in range(len(acc_left_1))]
-#plt.plot(x, acc_diff)
-
+plt.plot(t_a, a_l1, 'r-')
+plt.plot(t_a, a_l2, 'b-')
 plt.show()
