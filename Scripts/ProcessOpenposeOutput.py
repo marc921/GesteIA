@@ -105,7 +105,7 @@ def process_folder(folder_path):
     return person_1, person_2
 
 
-def export_to_csv(folder_path, write_to_disk=True, output_base_path='coordinates'):
+def export_to_csv(folder_path, write_to_disk=True, output_base_path='video_coordinates'):
     json_files = [p for p in os.listdir(folder_path) if ".json" in p]
     column_names = [name + "_x" for name in openpose_keypoints] + [name + "_y" for name in openpose_keypoints]
     data = np.zeros(shape=(len(json_files), len(column_names)))

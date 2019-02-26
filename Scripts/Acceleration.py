@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 
 from utils import norm, get_velocity_norm, get_acc, get_acc_2, convolve_xy, dt, get_gaussian_kernel, get_velocity
-from ProcessOpenposeOutput import process_folder
 
 # Parameters
 width = 480
@@ -15,8 +14,8 @@ openpose_files_path = os.path.join('.', 'OpenposeFiles')
 
 
 # Process Openpose output files
-person_1 = pd.read_csv('coordinates_1.csv')
-person_2 = pd.read_csv('coordinates_2.csv')
+person_1 = pd.read_csv('video_coordinates_1.csv')
+person_2 = pd.read_csv('video_coordinates_2.csv')
 
 # Position plotting
 t = [dt*i for i in range(len(person_1["RWrist_x"]))]
