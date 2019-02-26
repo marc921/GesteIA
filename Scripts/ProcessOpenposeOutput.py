@@ -8,6 +8,7 @@ scale_factor = 1
 left_hand_idx = 7
 right_hand_idx = 4
 height = 270
+dt = 1/25
 
 openpose_keypoints = [
     "Nose",
@@ -108,27 +109,31 @@ def export_to_csv(folder_path, write_to_disk=True, output_base_path='coordinates
     json_files = [p for p in os.listdir(folder_path) if ".json" in p]
     column_names = [name + "_x" for name in openpose_keypoints] + [name + "_y" for name in openpose_keypoints]
     data = np.zeros(shape=(len(json_files), len(column_names)))
-    df1 = pd.DataFrame(data, columns=column_names)
-    df2 = pd.DataFrame(data, columns=column_names)
+    df1 = pd.DataFrame(data, columns=column_names, copy=True)
+    df2 = pd.DataFrame(data, columns=column_names, copy=True)
 
-    for file in json_files:
+    for cpt, file in enumerate(json_files):
         js = file = json.loads(open(os.path.join(folder_path, file), 'r').read())
         people_list = file['people']
 
         # Person 1
-        x, y, confidence = process_raw_list(people_list[0]['pose_keypoints_2d'])
+        x1, y1, confidence = process_raw_list(people_list[0]['pose_keypoints_2d'])
         for i in range(len(openpose_keypoints)):
-            df1[openpose_keypoints[i] + "_x"] = x[i]
-            df1[openpose_keypoints[i] + "_y"] = y[i]
+            df1[openpose_keypoints[i] + "_x"][cpt] = x1[i]
+            df1[openpose_keypoints[i] + "_y"][cpt] = y1[i]
 
         # Person 2
-        x, y, confidence = process_raw_list(people_list[1]['pose_keypoints_2d'])
+        x2, y2, confidence = process_raw_list(people_list[1]['pose_keypoints_2d'])
         for i in range(len(openpose_keypoints)):
-            df2[openpose_keypoints[i] + "_x"] = x[i]
-            df2[openpose_keypoints[i] + "_y"] = y[i]
+            df2[openpose_keypoints[i] + "_x"][cpt] = x2[i]
+            df2[openpose_keypoints[i] + "_y"][cpt] = y2[i]
 
-    df1.to_csv(output_base_path + "_1.csv")
-    df2.to_csv(output_base_path + "_2.csv")
+    t = [i*dt for i in range(len(json_files))]
+    df1["time"] = t
+    df1.to_csv(output_base_path + "_1.csv", index=False)
+
+    df2["time"] = t
+    df2.to_csv(output_base_path + "_2.csv", index=False)
 
     return df1, df2
 

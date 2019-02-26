@@ -3,6 +3,7 @@ import json
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from utils import norm, get_velocity_norm, get_acc, get_acc_2, convolve_xy, dt, get_gaussian_kernel, get_velocity
 from ProcessOpenposeOutput import process_folder
@@ -14,16 +15,17 @@ openpose_files_path = os.path.join('.', 'OpenposeFiles')
 
 
 # Process Openpose output files
-person_1, person_2 = process_folder(openpose_files_path)
+person_1 = pd.read_csv('coordinates_1.csv')
+person_2 = pd.read_csv('coordinates_2.csv')
 
 # Position plotting
-t = [dt*i for i in range(len(person_1["left_hand"]["y"]))]
+t = [dt*i for i in range(len(person_1["RWrist_x"]))]
 
 gaussian_kernel = get_gaussian_kernel(7)
-x_rh1, y_rh1 = convolve_xy(person_1["right_hand"]["x"], person_1["right_hand"]["y"], gaussian_kernel)
-x_lh1, y_lh1 = convolve_xy(person_1["left_hand"]["x"], person_1["left_hand"]["y"], gaussian_kernel)
-x_rh2, y_rh2 = convolve_xy(person_2["right_hand"]["x"], person_2["right_hand"]["y"], gaussian_kernel)
-x_lh2, y_lh2 = convolve_xy(person_2["left_hand"]["x"], person_2["left_hand"]["y"], gaussian_kernel)
+x_rh1, y_rh1 = convolve_xy(person_1["RWrist_x"].values, person_1["RWrist_y"].values, gaussian_kernel)
+x_lh1, y_lh1 = convolve_xy(person_1["LWrist_x"].values, person_1["LWrist_y"].values, gaussian_kernel)
+x_rh2, y_rh2 = convolve_xy(person_2["RWrist_x"].values, person_2["RWrist_y"].values, gaussian_kernel)
+x_lh2, y_lh2 = convolve_xy(person_2["LWrist_x"].values, person_2["LWrist_y"].values, gaussian_kernel)
 
 x_rh = [x_rh1, x_rh2]
 y_rh = [y_rh1, y_rh2]
@@ -55,9 +57,9 @@ ax[0].plot(t_v, v_r1_y, 'r-', label='Right hand velocity 1')
 ax[0].plot(t_v, v_l1_y, 'g-', label='Left hand velocity 1')
 ax[0].legend(loc='upper left')
 
-ax[0].plot(t_v, v_r1_y, 'r-', label='Right hand velocity 1')
-ax[0].plot(t_v, v_l1_y, 'g-', label='Left hand velocity 1')
-ax[0].legend(loc='upper left')
+ax[1].plot(t_v, v_r1_y, 'r-', label='Right hand velocity 1')
+ax[1].plot(t_v, v_l1_y, 'g-', label='Left hand velocity 1')
+ax[1].legend(loc='upper left')
 plt.show()
 
 # Acceleration computing and plotting
