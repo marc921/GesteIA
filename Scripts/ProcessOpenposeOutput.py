@@ -51,7 +51,10 @@ def process_raw_list(l):
     else:
         for i in range(25):
             x += [l_rescale[i*3]]
-            y += [height_rescale - l_rescale[i*3 + 1]]
+            if l_rescale[i*3 + 1] == 0:
+                y += [0]
+            else:
+                y += [height_rescale - l_rescale[i*3 + 1]]
             confidence += [l[i*3 + 2]]
     return x, y, confidence
 
@@ -138,5 +141,41 @@ def export_to_csv(folder_path, write_to_disk=True, output_base_path='video_coord
     return df1, df2
 
 
+def export_to_csv_tuples(folder_path, write_to_disk=True, output_base_path='video_coordinates_tuples'):
+    json_files = [p for p in os.listdir(folder_path) if ".json" in p]
+    data = np.zeros(shape=(len(json_files), len(openpose_keypoints)))
+    d1 = {}
+    d2 = {}
+
+    for key in openpose_keypoints:
+        d1[key] = []
+        d2[key] = []
+
+    for cpt, file in enumerate(json_files):
+        js = file = json.loads(open(os.path.join(folder_path, file), 'r').read())
+        people_list = file['people']
+
+        # Person 1
+        x1, y1, confidence = process_raw_list(people_list[0]['pose_keypoints_2d'])
+        for i in range(len(openpose_keypoints)):
+            d1[openpose_keypoints[i]] += [(x1[i], y1[i])]
+
+        # Person 2
+        x2, y2, confidence = process_raw_list(people_list[1]['pose_keypoints_2d'])
+        for i in range(len(openpose_keypoints)):
+            d2[openpose_keypoints[i]] += [(x2[i], y2[i])]
+
+    t = [i*dt for i in range(len(json_files))]
+    df1 = pd.DataFrame(d1)
+    df1["time"] = t
+    df1.to_csv(output_base_path + "_1.csv", index=False, sep=";")
+
+    df2 = pd.DataFrame(d2)
+    df2["time"] = t
+    df2.to_csv(output_base_path + "_2.csv", index=False, sep=";")
+
+    return df1, df2
+
+
 openpose_files_path = os.path.join('..', 'OpenposeFiles')
-export_to_csv(openpose_files_path)
+export_to_csv_tuples(openpose_files_path)
