@@ -26,11 +26,6 @@ x_lh1, y_lh1 = convolve_xy(person_1["LWrist_x"].values, person_1["LWrist_y"].val
 x_rh2, y_rh2 = convolve_xy(person_2["RWrist_x"].values, person_2["RWrist_y"].values, gaussian_kernel)
 x_lh2, y_lh2 = convolve_xy(person_2["LWrist_x"].values, person_2["LWrist_y"].values, gaussian_kernel)
 
-x_rh = [x_rh1, x_rh2]
-y_rh = [y_rh1, y_rh2]
-x_lh = [x_lh1, x_lh2]
-y_lh = [y_lh1, y_lh2]
-
 fig, ax = plt.subplots(nrows=1, ncols=2)
 ax[0].plot(t, y_rh1, 'r-', label='Right hand 1')
 ax[0].plot(t, y_lh1, 'b-', label='Left hand 1')
