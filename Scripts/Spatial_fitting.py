@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 def data_from_video(filename1, filename2):
-
+    
     return data1, data2
 
 
