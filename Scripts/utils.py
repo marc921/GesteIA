@@ -5,8 +5,8 @@ import numpy as np
 dt = 1/25
 
 
-def norm(x, y):
-    return math.sqrt(x**2 + y**2)
+def norm(x, y, z=0):
+    return math.sqrt(x**2 + y**2 + z**2)
 
 
 def gauss(x):
@@ -27,11 +27,30 @@ def get_velocity(x, y):
     return vx, vy
 
 
+def get_velocity_3D(x, y, z):
+    vx, vy = [], []
+    for i in range(len(x) - 1):
+        vx += [(x[i+1] - x[i]) / dt]
+        vy += [(y[i+1] - y[i]) / dt]
+        vz += [(z[i+1] - z[i]) / dt]
+    return vx, vy, vz
+
+
 def get_velocity_norm(x, y):
     v = []
     for i in range(len(x) - 1):
         vx = (x[i+1] - x[i]) / dt
         vy = (y[i+1] - y[i]) / dt
+        v += [norm(vx, vy)]
+    return v
+
+
+def get_velocity_norm_3D(x, y, z):
+    v = []
+    for i in range(len(x) - 1):
+        vx = (x[i+1] - x[i]) / dt
+        vy = (y[i+1] - y[i]) / dt
+        vz = (z[i+1] - z[i]) / dt
         v += [norm(vx, vy)]
     return v
 
