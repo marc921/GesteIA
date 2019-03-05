@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from utils import get_velocity_norm_3D, get_velocity_norm, convolve_xy, get_gaussian_kernel, dt
+from utils import get_velocity_norm_3D, get_velocity_norm, convolve_xy, get_gaussian_kernel, dt, remove_max_outliers
 
 # Settings
 mocap_path = os.path.join('..', 'Data')
@@ -29,7 +29,7 @@ person_2 = pd.read_csv('video_coordinates_2.csv')
 # Position
 t = [dt*i for i in range(len(person_1["RWrist_x"]))]
 
-gaussian_kernel = get_gaussian_kernel(7)
+gaussian_kernel = get_gaussian_kernel(15)
 x_rh1, y_rh1 = convolve_xy(person_1["RWrist_x"].values, person_1["RWrist_y"].values, gaussian_kernel)
 x_lh1, y_lh1 = convolve_xy(person_1["LWrist_x"].values, person_1["LWrist_y"].values, gaussian_kernel)
 x_rh2, y_rh2 = convolve_xy(person_2["RWrist_x"].values, person_2["RWrist_y"].values, gaussian_kernel)
@@ -50,6 +50,12 @@ t_v = [dt*i for i in range(len(v_l1))]
 t_vm1 = mocap_df1['Time'].values[:len(vm_l1)]
 t_vm2 = mocap_df2['Time'].values[:len(vm_l2)]
 
+# removing some outliers
+v_l1 = remove_max_outliers(v_l1)
+v_l2 = remove_max_outliers(v_l2)
+vm_l1 = remove_max_outliers(vm_l1)
+vm_l2 = remove_max_outliers(vm_l2)
+
 fig, ax = plt.subplots(nrows=2, ncols=2)
 # ax[0][0].plot(t_v, v_r1_y, 'r-', label='Right hand velocity 1')
 ax[0][0].plot(t_v, v_l1, 'g-', label='Left hand velocity 1')
@@ -59,10 +65,14 @@ ax[0][0].legend(loc='upper left')
 ax[0][1].plot(t_v, v_l2, 'g-', label='Left hand velocity 2')
 ax[0][1].legend(loc='upper left')
 
-ax[1][0].plot(t_vm1, vm_l1, 'g-', label='Left hand velocity 1')
+ax[1][0].plot(t_vm1, vm_l1, 'g-', label='Left hand velocity 1 - MOCAP')
 ax[1][0].legend(loc='upper left')
 
-ax[1][1].plot(t_vm2, vm_l2, 'g-', label='Left hand velocity 2')
+ax[1][1].plot(t_vm2, vm_l2, 'g-', label='Left hand velocity 2 - MOCAP')
 ax[1][1].legend(loc='upper left')
+
+# To maximize the plots
+mng = plt.get_current_fig_manager()
+mng.window.state('zoomed')
 
 plt.show()
