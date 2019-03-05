@@ -8,11 +8,11 @@ import pandas as pd
 from utils import get_velocity_norm_3D, get_velocity_norm, convolve_xy, get_gaussian_kernel, dt, remove_max_outliers
 
 # Settings
-mocap_path = os.path.join('..', 'Data')
+data_path = os.path.join('..', 'Data')
 
 # Mocap files
-mocap_df1 = pd.read_csv(os.path.join(mocap_path, 'Mocap_1.csv'), sep=';')
-mocap_df2 = pd.read_csv(os.path.join(mocap_path, 'Mocap_2.csv'), sep=';')
+mocap_df1 = pd.read_csv(os.path.join(data_path, 'Mocap_1.csv'), sep=';')
+mocap_df2 = pd.read_csv(os.path.join(data_path, 'Mocap_2.csv'), sep=';')
 
 # Keeping only position coordinates
 mocap_df1 = mocap_df1[mocap_df1['Type'] == 'position']
@@ -23,8 +23,8 @@ xm1, ym1, zm1 = mocap_df1['LeftHand_x'].values, mocap_df1['LeftHand_y'].values, 
 xm2, ym2, zm2 = mocap_df2['LeftHand_x'].values, mocap_df2['LeftHand_y'].values, mocap_df2['LeftHand_z'].values
 
 # Process Openpose output files
-person_1 = pd.read_csv('video_coordinates_1.csv')
-person_2 = pd.read_csv('video_coordinates_2.csv')
+person_1 = pd.read_csv(os.path.join(data_path, 'video_coordinates_1.csv'))
+person_2 = pd.read_csv(os.path.join(data_path, 'video_coordinates_2.csv'))
 
 # Position
 t = [dt*i for i in range(len(person_1["RWrist_x"]))]
