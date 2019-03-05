@@ -76,3 +76,10 @@ def convolve_xy(x, y, kernel):
     x_c = np.convolve(x, kernel, mode='same')
     y_c = np.convolve(y, kernel, mode='same')
     return x_c, y_c
+
+
+def remove_max_outliers(x, ratio=0.05):
+    x_inliers = np.array(x)
+    quantile = np.quantile(x_inliers, max(0, 1-ratio), interpolation='lower')
+    x_inliers[x_inliers >= quantile] = 0
+    return x_inliers
