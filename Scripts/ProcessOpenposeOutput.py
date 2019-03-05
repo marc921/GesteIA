@@ -177,5 +177,9 @@ def export_to_csv_tuples(folder_path, write_to_disk=True, output_base_path='vide
     return df1, df2
 
 
-openpose_files_path = os.path.join('..', 'OpenposeFiles')
-export_to_csv_tuples(openpose_files_path)
+openpose_files_path = os.path.join('..', 'Unity_gesteIA', 'Assets', 'Data', 'OpenposeOutput', 'Down4')
+output_path = os.path.join('..', 'Data', 'video_coordinates')
+output_path_tuples = os.path.join('..', 'Data', 'video_coordinates_tuples')
+
+export_to_csv(openpose_files_path, output_base_path=output_path)
+export_to_csv_tuples(openpose_files_path, output_base_path=output_path_tuples)
