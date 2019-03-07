@@ -11,6 +11,7 @@ from TimeFitting import normalize_array, compare_on_window
 
 # Settings
 PLOT_VELOCITIES = False
+FIT = True
 
 data_path = os.path.join('..', 'Data')
 mocap_label_x = 'LeftHand_x'
@@ -99,28 +100,58 @@ if PLOT_VELOCITIES:
     plt.show()
 
 # trying to fit l1
-print(" # Trying to fit graphs")
+if FIT:
+    print("\n\n\n # Trying to fit graphs \n")
 
-# To speed up computations
-v_l1 = v_l1[100:3000]
-t_v = t_v[100:3000]
+    # To speed up computations
+    v_l1_fit = v_l1
+    t_v_fit = t_v
 
-df_openpose = pd.DataFrame(np.zeros(shape=(len(v_l1), 2)), columns=['Time', 'Data'])
-df_openpose['Time'] = t_v
-df_openpose['Data'] = v_l1
+    df_openpose = pd.DataFrame(np.zeros(shape=(len(v_l1_fit), 2)), columns=['Time', 'Data'])
+    df_openpose['Time'] = t_v_fit
+    df_openpose['Data'] = v_l1_fit
 
-df_mocap = pd.DataFrame(np.zeros(shape=(len(vm_l1), 2)), columns=['Time', 'Data'])
-df_mocap['Time'] = t_vm1
-df_mocap['Data'] = vm_l1
+    df_mocap = pd.DataFrame(np.zeros(shape=(len(vm_l1), 2)), columns=['Time', 'Data'])
+    df_mocap['Time'] = t_vm1
+    df_mocap['Data'] = vm_l1
 
-nominal_cost = compare_on_window(df_openpose, df_mocap, time_window=2.5, time_step=2.5)
+    print(" # Computing similarity cost without offset")
+    nominal_cost = compare_on_window(df_openpose, df_mocap, time_window=2, time_step=5)
+    print(" similarity cost: {:.5f} \n".format(nominal_cost))
 
-offsets = [-6, -8, -10, -12]
-cost = []
-for offset in offsets:
-    df_mocap['Time'] = (t_vm1 + offset)
-    cost += [compare_on_window(df_openpose, df_mocap, time_window=2.5, time_step=2.5)]
+    # offset list to test
+    offsets = [-1, -2, -3, -4, -5, -6, -7]
+    print(" # Testing these offsets : {} \n".format(offsets))
 
-print("Nominal cost: {:.5f}".format(nominal_cost))
-for i in range(len(offsets)):
-    print("Cost for offset ({}): {:.5f}".format(offsets[i], cost[i]))
+    costs = []
+    min_cost = nominal_cost
+    best_offset = 0
+    for offset in offsets:
+        df_mocap['Time'] = (t_vm1 + offset)
+        print(" Computing similarity cost for offset: {}".format(offset))
+        c = compare_on_window(df_openpose, df_mocap, time_window=2, time_step=5)
+        costs += [c]
+
+        print(" Offset: {} --> similarity cost: {:.5f} \n".format(offset, c))
+
+        if c < min_cost:
+            min_cost = c
+            best_offset = offset
+
+    print(" # Best cost ({:.5f}) for offset: {}".format(min_cost, best_offset))
+
+    fig, ax = plt.subplots(nrows=2, ncols=1)
+
+    ax[0].plot(t_v, v_l1, 'g-', label='LH velocity 1')
+    ax[0].plot(t_vm1, vm_l1, 'r-', label='LH velocity 1 - MOCAP')
+    ax[0].legend(loc='upper left')
+
+    ax[1].plot(t_v, v_l1, 'g-', label='LH velocity 1')
+    ax[1].plot(t_vm1 + best_offset, vm_l1, 'r-', label='LH velocity 1 - MOCAP - shifted ({})'.format(best_offset))
+    ax[1].legend(loc='upper left')
+
+    # To maximize the plots
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
+
+    plt.show()
