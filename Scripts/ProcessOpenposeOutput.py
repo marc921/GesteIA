@@ -178,18 +178,18 @@ def export_to_csv_tuples(folder_path, write_to_disk=True, output_base_path='vide
         # Person 2
         x2, y2, confidence = process_raw_list(people_list[1]['pose_keypoints_2d'])
         for i in range(len(openpose_keypoints)):
-            if cpt > 0:
-                if x1[i] == 0 and y1[i] == height:
-                    d1 = dist(x2[i], y2[i], dict2[openpose_keypoints[i]][-1][0], dict2[openpose_keypoints[i]][-1][1])
-                    d2 = dist(x2[i], y2[i], dict1[openpose_keypoints[i]][-1][0], dict1[openpose_keypoints[i]][-1][1])
-                else:
-                    d1 = dist(x1[i], y1[i], dict1[openpose_keypoints[i]][-1][0], dict1[openpose_keypoints[i]][-1][1])
-                    d2 = dist(x1[i], y1[i], dict2[openpose_keypoints[i]][-1][0], dict2[openpose_keypoints[i]][-1][1])
-            else:
-                d1 = 0
-                d2 = 42
+            # if cpt > 0:
+            #     if x1[i] == 0 and y1[i] == height:
+            #         d1 = dist(x2[i], y2[i], dict2[openpose_keypoints[i]][-1][0], dict2[openpose_keypoints[i]][-1][1])
+            #         d2 = dist(x2[i], y2[i], dict1[openpose_keypoints[i]][-1][0], dict1[openpose_keypoints[i]][-1][1])
+            #     else:
+            #         d1 = dist(x1[i], y1[i], dict1[openpose_keypoints[i]][-1][0], dict1[openpose_keypoints[i]][-1][1])
+            #         d2 = dist(x1[i], y1[i], dict2[openpose_keypoints[i]][-1][0], dict2[openpose_keypoints[i]][-1][1])
+            # else:
+            #     d1 = 0
+            #     d2 = 42
 
-            if d1 < d2:
+            if x1[i] < x2[i]:
                 dict1[openpose_keypoints[i]] += [(x1[i], y1[i])]
                 dict2[openpose_keypoints[i]] += [(x2[i], y2[i])]
             else:
