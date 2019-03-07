@@ -7,8 +7,11 @@ import pandas as pd
 import ast
 
 from utils import get_velocity_norm_3D, get_velocity_norm, convolve_xy, get_gaussian_kernel, dt, remove_max_outliers, convolve_xyz, moyenne_glissante, get_acc_from_v
+from TimeFitting import normalize_array, compare_on_window
 
 # Settings
+PLOT_VELOCITIES = False
+
 data_path = os.path.join('..', 'Data')
 mocap_label_x = 'LeftHand_x'
 mocap_label_y = 'LeftHand_y'
@@ -18,6 +21,7 @@ openpose_label_x = 'LWrist_x'
 openpose_label_y = 'LWrist_y'
 
 # Mocap files
+print(" # Reading MOCAP files \n")
 mocap_df1 = pd.read_csv(os.path.join(data_path, 'Mocap_1.csv'), sep=';')
 mocap_df2 = pd.read_csv(os.path.join(data_path, 'Mocap_2.csv'), sep=';')
 
@@ -30,17 +34,15 @@ xm1, ym1, zm1 = mocap_df1[mocap_label_x].values, mocap_df1[mocap_label_y].values
 xm2, ym2, zm2 = mocap_df2[mocap_label_x].values, mocap_df2[mocap_label_y].values, mocap_df2[mocap_label_z].values
 
 # Process Openpose output files
+print(" # Reading OPENPOSE files \n")
 person_1 = pd.read_csv(os.path.join(data_path, 'video_coordinates_tuples_1.csv'), sep=';')
 person_2 = pd.read_csv(os.path.join(data_path, 'video_coordinates_tuples_2.csv'), sep=';')
 
 # Position
 t = [dt*i for i in range(len(person_1["RWrist"]))]
 
-n = 1000
-# x_lh1 = person_1[openpose_label_x].values
-# y_lh1 = person_1[openpose_label_y].values
-# x_lh2 = person_2[openpose_label_x].values
-# y_lh2 = person_2[openpose_label_y].values
+r = 500
+n = 2*r + 1
 
 person_1['LWrist'] = person_1['LWrist'].apply(ast.literal_eval)
 T1 = person_1['LWrist'].values
@@ -53,6 +55,7 @@ x_lh2 = [e[0] for e in T2]
 y_lh2 = [e[1] for e in T2]
 
 # Velocity
+print(" # Computing velocities \n")
 # Openpose
 v_l1 = get_velocity_norm(x_lh1, y_lh1)
 v_l2 = get_velocity_norm(x_lh2, y_lh2)
@@ -62,34 +65,62 @@ vm_l1 = get_velocity_norm_3D(xm1, ym1, zm1)
 vm_l2 = get_velocity_norm_3D(xm2, ym2, zm2)
 
 # Moyenne glissante
+print(" # Post processing velocities")
 v_l1 = moyenne_glissante(v_l1, n)
 v_l2 = moyenne_glissante(v_l2, n)
 vm_l1 = moyenne_glissante(vm_l1, n)
 vm_l2 = moyenne_glissante(vm_l2, n)
 
-t_v = [dt*i for i in range(len(v_l1))]
-t_vm1 = mocap_df1['Time'].values[:len(vm_l1)]
-t_vm2 = mocap_df2['Time'].values[:len(vm_l2)]
+t_v = [dt*(i + r) for i in range(len(v_l1))]
+t_vm1 = mocap_df1['Time'].values[r:len(vm_l1)+r]
+t_vm2 = mocap_df2['Time'].values[r:len(vm_l2)+r]
 
-# removing some outliers
-# v_l1 = remove_max_outliers(v_l1, 0.01)
-# v_l2 = remove_max_outliers(v_l2, 0.01)
-# vm_l1 = remove_max_outliers(vm_l1, 0.01)
-# vm_l2 = remove_max_outliers(vm_l2, 0.01)
+v_l1 = normalize_array(v_l1)
+v_l2 = normalize_array(v_l2)
+vm_l1 = normalize_array(vm_l1)
+vm_l2 = normalize_array(vm_l2)
 
-fig, ax = plt.subplots(nrows=2, ncols=1)
-# ax[0][0].plot(t_v, v_r1_y, 'r-', label='Right hand velocity 1')
-ax[0].plot(t_v, v_l1, 'g-', label='Left hand velocity 1')
-ax[0].plot(t_vm1, vm_l1 * 1000, 'r-', label='Left hand velocity 1 - MOCAP')
-ax[0].legend(loc='upper left')
+if PLOT_VELOCITIES:
+    fig, ax = plt.subplots(nrows=2, ncols=1)
+    # ax[0][0].plot(t_v, v_r1_y, 'r-', label='Right hand velocity 1')
+    ax[0].plot(t_v, v_l1, 'g-', label='Left hand velocity 1')
+    ax[0].plot(t_vm1, vm_l1, 'r-', label='Left hand velocity 1 - MOCAP')
+    ax[0].legend(loc='upper left')
 
-# ax[0][1].plot(t_v, v_r2_y, 'r-', label='Right hand velocity 2')
-ax[1].plot(t_v, v_l2, 'g-', label='Left hand velocity 2')
-ax[1].plot(t_vm2, vm_l2 * 1000, 'r-', label='Left hand velocity 2 - MOCAP')
-ax[1].legend(loc='upper left')
+    # ax[0][1].plot(t_v, v_r2_y, 'r-', label='Right hand velocity 2')
+    ax[1].plot(t_v, v_l2, 'g-', label='Left hand velocity 2')
+    ax[1].plot(t_vm2, vm_l2, 'r-', label='Left hand velocity 2 - MOCAP')
+    ax[1].legend(loc='upper left')
 
-# To maximize the plots
-mng = plt.get_current_fig_manager()
-mng.window.state('zoomed')
+    # To maximize the plots
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
 
-plt.show()
+    plt.show()
+
+# trying to fit l1
+print(" # Trying to fit graphs")
+
+# To speed up computations
+v_l1 = v_l1[100:3000]
+t_v = t_v[100:3000]
+
+df_openpose = pd.DataFrame(np.zeros(shape=(len(v_l1), 2)), columns=['Time', 'Data'])
+df_openpose['Time'] = t_v
+df_openpose['Data'] = v_l1
+
+df_mocap = pd.DataFrame(np.zeros(shape=(len(vm_l1), 2)), columns=['Time', 'Data'])
+df_mocap['Time'] = t_vm1
+df_mocap['Data'] = vm_l1
+
+nominal_cost = compare_on_window(df_openpose, df_mocap, time_window=2.5, time_step=2.5)
+
+offsets = [-6, -8, -10, -12]
+cost = []
+for offset in offsets:
+    df_mocap['Time'] = (t_vm1 + offset)
+    cost += [compare_on_window(df_openpose, df_mocap, time_window=2.5, time_step=2.5)]
+
+print("Nominal cost: {:.5f}".format(nominal_cost))
+for i in range(len(offsets)):
+    print("Cost for offset ({}): {:.5f}".format(offsets[i], cost[i]))
