@@ -1,55 +1,52 @@
 import os
 import json
 import matplotlib.pyplot as plt
-import skimage.io
+import cv2
+import pandas as pd
+import time
+import ast
 
 # Parameters
 width = 480
 height = 270
+openpose_label_x = 'LWrist_x'
+openpose_label_y = 'LWrist_y'
 
+# Process Openpose output files
+data_path = os.path.join('..', 'Data')
+person_1 = pd.read_csv(os.path.join(data_path, 'video_coordinates_tuples_1.csv'), sep=';')
+person_2 = pd.read_csv(os.path.join(data_path, 'video_coordinates_tuples_2.csv'), sep=';')
 
-def process_raw_list(l):
-    x = []
-    y = []
-    confidence = []
-    if len(l) % 3 != 0:
-        print("ERROR")
-    else:
-        for i in range(25):
-            x += [l[i*3]]
-            y += [l[i*3 + 1]]
-            confidence += [l[i*3 + 2]]
-    return x, y, confidence
+# x_lh1 = person_1[openpose_label_x].values
+# y_lh1 = person_1[openpose_label_y].values
+# x_lh2 = person_2[openpose_label_x].values
+# y_lh2 = person_2[openpose_label_y].values
 
+person_1['LWrist'] = person_1['LWrist'].apply(ast.literal_eval)
+T1 = person_1['LWrist'].values
+x_lh1 = [e[0] for e in T1]
+y_lh1 = [e[1] for e in T1]
 
-def keep_good_points(x, y, confidence, thresh=0.8):
-    x_good = []
-    y_good = []
+person_2['LWrist'] = person_2['LWrist'].apply(ast.literal_eval)
+T2 = person_2['LWrist'].values
+x_lh2 = [e[0] for e in T2]
+y_lh2 = [e[1] for e in T2]
 
-    for i in range(len(x)):
-        if confidence[i] > thresh:
-            x_good += [x[i]]
-            y_good += [y[i]]
+cap = cv2.VideoCapture('VR-FRFR13-14_compressed_down_4.mp4')
+cpt = 0
 
-    return x_good, y_good
+while(cap.isOpened()):
+    ret, frame = cap.read()
 
+    cv2.circle(frame, (int(x_lh1[cpt]), height - int(y_lh1[cpt])), 4, (255, 0, 0), -1)
+    cv2.circle(frame, (int(x_lh2[cpt]), height - int(y_lh2[cpt])), 4, (0, 0, 255), -1)
 
-openpose_files_path = os.path.join('.', 'OpenposeFiles')
-test_file = os.path.join(openpose_files_path, 'VR-FRFR13-14_compressed_down_4_000000000000_keypoints.json')
-img_path = os.path.join(openpose_files_path, 'vlcsnap-00001.jpg')
+    cpt += 1
+    cv2.imshow('frame',frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-file = json.loads(open(test_file, 'r').read())
-people_list = file['people']
-for people in people_list:
-     raw_list = people['pose_keypoints_2d']
-     x, y, confidence = process_raw_list(raw_list)
-     x_good, y_good = keep_good_points(x, y, confidence, thresh=0.75)
-     #plt.scatter(x_good, y_good)
-     x_test = [x[0], x[4], x[7]]
-     y_test = [y[0], y[4], y[7]]
-     plt.scatter(x_test, y_test)
+    time.sleep(0.005)
 
-     plt.imshow(skimage.io.imread(img_path))
-     plt.xlim(0, width)
-     plt.ylim(height, 0)
-     plt.show()
+cap.release()
+cv2.destroyAllWindows()

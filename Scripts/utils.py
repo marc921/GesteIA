@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from tqdm import tqdm
 
 # Video settings
 dt = 1/25
@@ -78,8 +79,29 @@ def convolve_xy(x, y, kernel):
     return x_c, y_c
 
 
+def moyenne_glissante(x, n):
+    x_c = []
+    for i in tqdm(range(len(x) - n)):
+        x_c += [np.array(x[i:i+n]).mean()]
+    return np.array(x_c)
+
+
+def convolve_xyz(x, y, z, kernel):
+    x_c = np.convolve(x, kernel, mode='same')
+    y_c = np.convolve(y, kernel, mode='same')
+    z_c = np.convolve(z, kernel, mode='same')
+    return x_c, y_c, z_c
+
+
 def remove_max_outliers(x, ratio=0.05):
     x_inliers = np.array(x)
     quantile = np.quantile(x_inliers, max(0, 1-ratio), interpolation='lower')
     x_inliers[x_inliers >= quantile] = 0
     return x_inliers
+
+
+def get_acc_from_v(v):
+    acc = []
+    for i in range(len(v) - 1):
+        acc += [(v[i+1] - v[i]) / dt]
+    return np.array(acc)
