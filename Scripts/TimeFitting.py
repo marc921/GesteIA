@@ -70,7 +70,7 @@ def compare_on_window(df1, df2, time_window=0.5, time_step=-1):
 
     time_step_cpt = 0
     total_cost = 0
-    for t_idx in tqdm(np.arange(t_min, t_max - time_window, time_step)):
+    for t_idx in tqdm(np.arange(t_min, t_max - time_window, time_step), desc=' ', leave=False):
         time_slice_1 = df1[df1['Time'] >= t_idx]
         time_slice_1 = time_slice_1[time_slice_1['Time'] < (t_idx + time_window)]
         time_slice_2 = df2[df2['Time'] >= t_idx]
