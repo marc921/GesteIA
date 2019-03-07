@@ -197,7 +197,7 @@ def fit_translate(mocap, video, ref_time=120.0, label='Hip'):
         if col in ['Type', 'Time', 'time']:
             continue
         fitted_mocap[col] = fitted_mocap[col].apply(translate_point, args=(T,))
-    return fitted_mocap
+    return fitted_mocap, T
 
 
 def optimize_projection(mocap1, mocap2, video1, video2, vertical,
@@ -221,9 +221,9 @@ def optimize_projection(mocap1, mocap2, video1, video2, vertical,
             label=label)
         if verbose:
             print('After projection: ', projected_mocap1, projected_mocap2)
-        translated_mocap1 = fit_translate(projected_mocap1, video1,
+        translated_mocap1, T1 = fit_translate(projected_mocap1, video1,
                                           label=label)
-        translated_mocap2 = fit_translate(projected_mocap2, video2,
+        translated_mocap2, T2 = fit_translate(projected_mocap2, video2,
                                           label=label)
         if verbose:
             print('After macro fitting: ', translated_mocap1,
@@ -280,8 +280,8 @@ if __name__ == '__main__':
                                                             rotated_mocap2,
                                                             vertical,
                                                             label='Hip')
-    fitted_mocap1 = fit_translate(projected_mocap1, video1, label='Hip')
-    fitted_mocap2 = fit_translate(projected_mocap2, video2, label='Hip')
+    fitted_mocap1, T1 = fit_translate(projected_mocap1, video1, label='Hip')
+    fitted_mocap2, T2 = fit_translate(projected_mocap2, video2, label='Hip')
 
     # Record results
     os.makedirs('../Data/Results', exist_ok=False)
@@ -291,3 +291,6 @@ if __name__ == '__main__':
     print('Projected mocap data 2: ', fitted_mocap2)
     with open('../Data/Results/Optim_results.txt', 'w') as text_file:
         print(optim, file=text_file)
+        print('', file=text_file)
+        print('Translation of mocap 1', T1, file=text_file)
+        print('Translation of mocap 2', T2, file=text_file)
