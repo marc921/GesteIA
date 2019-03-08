@@ -120,7 +120,7 @@ if FIT:
     print(" similarity cost: {:.5f} \n".format(nominal_cost))
 
     # offset list to test
-    offsets = [-1, -2, -3, -4, -5, -6, -7]
+    offsets = [-1, -2, -3, 1, 2, 3, 4]
     print(" # Testing these offsets : {} \n".format(offsets))
 
     costs = []
