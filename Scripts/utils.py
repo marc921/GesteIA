@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from tqdm import tqdm
 
 # Video settings
 dt = 1/25
@@ -80,7 +81,7 @@ def convolve_xy(x, y, kernel):
 
 def moyenne_glissante(x, n):
     x_c = []
-    for i in range(len(x) - n):
+    for i in tqdm(range(len(x) - n)):
         x_c += [np.array(x[i:i+n]).mean()]
     return np.array(x_c)
 
