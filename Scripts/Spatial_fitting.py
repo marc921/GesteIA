@@ -175,15 +175,20 @@ def L2_distance_df(df1, df2, video=False):
     return np.sqrt(dist)
 
 
-def fit_translate(mocap, video, ref_time=120.0, label='Hip'):
-    video_min = video.loc[video['time'] <= ref_time]
-    video_ref = video_min.loc[video_min['time'].idxmax()]
-    mocap_min = mocap.loc[mocap['Time'] <= ref_time]
-    mocap_ref = mocap_min.loc[mocap_min['Time'].idxmax()]
+def fit_translate(mocap, video, ref_time=120.0, label='Hip', sampleframe=False):
+    if sampleframe == False:
+        video_min = video.loc[video['time'] <= ref_time]
+        video_ref = video_min.loc[video_min['time'].idxmax()]
+        mocap_min = mocap.loc[mocap['Time'] <= ref_time]
+        mocap_ref = mocap_min.loc[mocap_min['Time'].idxmax()]
+    else:
+        video_ref = video.iloc[0]
+        mocap_ref = mocap.iloc[0]
     T = np.asarray(
         convert_el_to_tuple(video_ref[label])) - np.asarray(
         convert_el_to_tuple(mocap_ref[label]))
     fitted_mocap = mocap.copy(True)
+
     # TODO might not be precise enough?
 
     def translate_point(point, T):
@@ -201,12 +206,13 @@ def fit_translate(mocap, video, ref_time=120.0, label='Hip'):
 
 
 def optimize_projection(mocap1, mocap2, video1, video2, vertical,
-                        label='Hip', verbose=False):
+                        label='Hip', verbose=False, sampleframe=False):
     # Only optimize pointcloud adjustment over a few samples
-    mocap1 = preprocess_mocap(mocap1).iloc[0:500:10]
-    video1 = preprocess_video(video1).iloc[0:500:10]
-    mocap2 = preprocess_mocap(mocap2).iloc[0:500:10]
-    video2 = preprocess_video(video2).iloc[0:500:10]
+    if sampleframe == False:
+        mocap1 = preprocess_mocap(mocap1).iloc[0:500:10]
+        video1 = preprocess_video(video1).iloc[0:500:10]
+        mocap2 = preprocess_mocap(mocap2).iloc[0:500:10]
+        video2 = preprocess_video(video2).iloc[0:500:10]
 
     def score_projection(theta, vertical, mocap1, mocap2, video1,
                          video2, label):
@@ -222,9 +228,9 @@ def optimize_projection(mocap1, mocap2, video1, video2, vertical,
         if verbose:
             print('After projection: ', projected_mocap1, projected_mocap2)
         translated_mocap1, T1 = fit_translate(projected_mocap1, video1,
-                                          label=label)
+                                              label=label)
         translated_mocap2, T2 = fit_translate(projected_mocap2, video2,
-                                          label=label)
+                                              label=label)
         if verbose:
             print('After macro fitting: ', translated_mocap1,
                   translated_mocap2)
@@ -239,17 +245,26 @@ def optimize_projection(mocap1, mocap2, video1, video2, vertical,
 
 
 if __name__ == '__main__':
+    sampleframe = bool(input('Only testing with a few frames (True) or with '
+                             'the whole database (False)? '))
+
     # Retrieve data from video and Mocap
-    video1, video2 = data_from_csv('../Data/video_coordinates_tuples_1.csv',
-                                   '../Data/video_coordinates_tuples_2.csv',
+    video1, video2 = data_from_csv('Data/video_coordinates_tuples_1.csv',
+                                   'Data/video_coordinates_tuples_2.csv',
                                    video=True, sep=';')
+    if sampleframe:
+        video1 = video1.iloc[[675, 1243]]
+        video2 = video2.iloc[[675, 1243]]
     video1 = preprocess_video(video1)
     video2 = preprocess_video(video2)
     print('Video data 1: ', video1)
     print('Video data 2: ', video2)
-    mocap1, mocap2 = data_from_csv('../Data/Mocap_tuples1.csv',
-                                   '../Data/Mocap_tuples2.csv', sep=';')
+    mocap1, mocap2 = data_from_csv('Data/Mocap_tuples1.csv',
+                                   'Data/Mocap_tuples2.csv', sep=';')
     # Mocap coord syst from camera: x going left, y vertical, z going outward
+    if sampleframe:
+        mocap1 = mocap1.iloc[[1492, 2824]]
+        mocap2 = mocap2.iloc[[1492, 2824]]
     mocap1 = preprocess_mocap(mocap1)
     mocap2 = preprocess_mocap(mocap2)
     print('Original mocap data 1: ', mocap1)
@@ -258,8 +273,8 @@ if __name__ == '__main__':
     # Unit tests
     vertical = np.array([0, 1, 0])
     print(rotate_point(np.array([1, 0, 0]), 1.57, np.array([0, 0, 1])))
-    print(np.linalg.norm(np.asarray(video1['RShoulder'].values[56]) -
-                         np.asarray(video2['RShoulder'].values[56])))
+    print(np.linalg.norm(np.asarray(video1['RShoulder'].values[0]) -
+                         np.asarray(video2['RShoulder'].values[0])))
     print(L2_distance_df(video2, video1, video=True))
     # TODO look at source data!
 
@@ -270,7 +285,8 @@ if __name__ == '__main__':
                                 video2,
                                 vertical,
                                 label='Hip',
-                                verbose=False)
+                                verbose=False,
+                                sampleframe=sampleframe)
     print('Optimization result: ', optim)
     rotated_mocap1 = rotate_data(mocap1, optim.x[0], vertical)
     rotated_mocap2 = rotate_data(mocap2, optim.x[1], vertical)
@@ -284,12 +300,12 @@ if __name__ == '__main__':
     fitted_mocap2, T2 = fit_translate(projected_mocap2, video2, label='Hip')
 
     # Record results
-    os.makedirs('../Data/Results', exist_ok=False)
-    fitted_mocap1.to_csv('../Data/Results/Projected_mocap1.csv', sep=';')
-    fitted_mocap2.to_csv('../Data/Results/Projected_mocap2.csv', sep=';')
+    os.makedirs('Data/Results', exist_ok=False)
+    fitted_mocap1.to_csv('Data/Results/Projected_mocap1.csv', sep=';')
+    fitted_mocap2.to_csv('Data/Results/Projected_mocap2.csv', sep=';')
     print('Projected mocap data 1: ', fitted_mocap1)
     print('Projected mocap data 2: ', fitted_mocap2)
-    with open('../Data/Results/Optim_results.txt', 'w') as text_file:
+    with open('Data/Results/Optim_results.txt', 'w') as text_file:
         print(optim, file=text_file)
         print('', file=text_file)
         print('Translation of mocap 1', T1, file=text_file)
