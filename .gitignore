@@ -6,6 +6,7 @@ Unity_gesteIA/[Bb]uilds/
 Unity_gesteIA/Assets/AssetStoreTools*
 Unity_gesteIA/Assets/Data/
 Data/
+venv/
 
 # Visual Studio cache directory
 .vs/

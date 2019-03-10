@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 import ast
 
-from utils import get_velocity_norm_3D, get_velocity_norm, convolve_xy, get_gaussian_kernel, dt, remove_max_outliers, convolve_xyz, moyenne_glissante, get_acc_from_v
+from utils import get_velocity_norm_3D, get_velocity_norm, convolve_xy, \
+    get_gaussian_kernel, dt, remove_max_outliers, convolve_xyz, \
+    moyenne_glissante, get_acc_from_v
 from TimeFitting import normalize_array, compare_on_window
 
 # Settings
@@ -31,19 +33,23 @@ mocap_df1 = mocap_df1[mocap_df1['Type'] == 'position']
 mocap_df2 = mocap_df2[mocap_df2['Type'] == 'position']
 
 # Creation of variables per coordinates
-xm1, ym1, zm1 = mocap_df1[mocap_label_x].values, mocap_df1[mocap_label_y].values, mocap_df1[mocap_label_z].values
-xm2, ym2, zm2 = mocap_df2[mocap_label_x].values, mocap_df2[mocap_label_y].values, mocap_df2[mocap_label_z].values
+xm1, ym1, zm1 = mocap_df1[mocap_label_x].values, mocap_df1[
+    mocap_label_y].values, mocap_df1[mocap_label_z].values
+xm2, ym2, zm2 = mocap_df2[mocap_label_x].values, mocap_df2[
+    mocap_label_y].values, mocap_df2[mocap_label_z].values
 
 # Process Openpose output files
 print(" # Reading OPENPOSE files \n")
-person_1 = pd.read_csv(os.path.join(data_path, 'video_coordinates_tuples_1.csv'), sep=';')
-person_2 = pd.read_csv(os.path.join(data_path, 'video_coordinates_tuples_2.csv'), sep=';')
+person_1 = pd.read_csv(
+    os.path.join(data_path, 'video_coordinates_tuples_1.csv'), sep=';')
+person_2 = pd.read_csv(
+    os.path.join(data_path, 'video_coordinates_tuples_2.csv'), sep=';')
 
 # Position
-t = [dt*i for i in range(len(person_1["RWrist"]))]
+t = [dt * i for i in range(len(person_1["RWrist"]))]
 
 r = 500
-n = 2*r + 1
+n = 2 * r + 1
 
 person_1['LWrist'] = person_1['LWrist'].apply(ast.literal_eval)
 T1 = person_1['LWrist'].values
@@ -72,9 +78,9 @@ v_l2 = moyenne_glissante(v_l2, n)
 vm_l1 = moyenne_glissante(vm_l1, n)
 vm_l2 = moyenne_glissante(vm_l2, n)
 
-t_v = [dt*(i + r) for i in range(len(v_l1))]
-t_vm1 = mocap_df1['Time'].values[r:len(vm_l1)+r]
-t_vm2 = mocap_df2['Time'].values[r:len(vm_l2)+r]
+t_v = [dt * (i + r) for i in range(len(v_l1))]
+t_vm1 = mocap_df1['Time'].values[r:len(vm_l1) + r]
+t_vm2 = mocap_df2['Time'].values[r:len(vm_l2) + r]
 
 v_l1 = normalize_array(v_l1)
 v_l2 = normalize_array(v_l2)
@@ -107,16 +113,19 @@ if FIT:
     v_l1_fit = v_l1
     t_v_fit = t_v
 
-    df_openpose = pd.DataFrame(np.zeros(shape=(len(v_l1_fit), 2)), columns=['Time', 'Data'])
+    df_openpose = pd.DataFrame(np.zeros(shape=(len(v_l1_fit), 2)),
+                               columns=['Time', 'Data'])
     df_openpose['Time'] = t_v_fit
     df_openpose['Data'] = v_l1_fit
 
-    df_mocap = pd.DataFrame(np.zeros(shape=(len(vm_l1), 2)), columns=['Time', 'Data'])
+    df_mocap = pd.DataFrame(np.zeros(shape=(len(vm_l1), 2)),
+                            columns=['Time', 'Data'])
     df_mocap['Time'] = t_vm1
     df_mocap['Data'] = vm_l1
 
     print(" # Computing similarity cost without offset")
-    nominal_cost = compare_on_window(df_openpose, df_mocap, time_window=2, time_step=5)
+    nominal_cost = compare_on_window(df_openpose, df_mocap, time_window=2,
+                                     time_step=5)
     print(" similarity cost: {:.5f} \n".format(nominal_cost))
 
     # offset list to test
@@ -147,7 +156,8 @@ if FIT:
     ax[0].legend(loc='upper left')
 
     ax[1].plot(t_v, v_l1, 'g-', label='LH velocity 1')
-    ax[1].plot(t_vm1 + best_offset, vm_l1, 'r-', label='LH velocity 1 - MOCAP - shifted ({})'.format(best_offset))
+    ax[1].plot(t_vm1 + best_offset, vm_l1, 'r-',
+               label='LH velocity 1 - MOCAP - shifted ({})'.format(best_offset))
     ax[1].legend(loc='upper left')
 
     # To maximize the plots
