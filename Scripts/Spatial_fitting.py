@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os, sys, re
 import math
+import matplotlib.pyplot as plt
 from functools import partial
 from scipy.optimize import minimize
 
@@ -63,6 +64,9 @@ def data_from_csv(filename1, filename2, sep=';', video=False):
 def preprocess_mocap(df):
     processed_df = df.copy(True)
     processed_df = processed_df[processed_df['Type'] == 'position'].dropna()
+    processed_df = processed_df[['Hip', 'LeftShoulder', 'RightShoulder',
+                                 'Head', 'Neck', 'LeftHand', 'RightHand',
+                                 'Time', 'Type']]
     processed_df = convert_to_tuple(processed_df)
     return processed_df
 
@@ -70,7 +74,17 @@ def preprocess_mocap(df):
 def preprocess_video(df):
     processed_df = df.copy(True)
     processed_df = processed_df.dropna()
-    processed_df = processed_df.rename(columns={'MidHip': 'Hip'})
+    processed_df = processed_df.rename(columns={'MidHip': 'Hip',
+                                                'LShoulder': 'LeftShoulder',
+                                                'RShoulder': 'RightShoulder',
+                                                'Nose': 'Head',
+                                                'Neck': 'Neck',
+                                                'LWrist': 'LeftHand',
+                                                'RWrist': 'RightHand',
+                                                'time': 'Time'})
+    processed_df = processed_df[['Hip', 'LeftShoulder', 'RightShoulder',
+                                 'Head', 'Neck', 'LeftHand', 'RightHand',
+                                 'Time']]
     processed_df = convert_to_tuple(processed_df)
     return processed_df
 
@@ -151,7 +165,72 @@ def rescale(df, scaling_factor):
         if col in ['Type', 'Time', 'time']:
             continue
         df[col] = df[col].apply(lambda x: scaling_factor * x)
-    return rescaled_df
+    return df
+
+
+def rescale_pointclouds(video1, video2, projected_mocap1, projected_mocap2,
+                        ref_time=120.0, sampleframe=False,
+                        verbose=False):
+    if sampleframe == False:
+        video_min1 = video1.loc[video1['Time'] <= ref_time]
+        video_ref1 = video_min1.loc[video_min1['Time'].idxmax()]
+        projected_mocap_min1 = projected_mocap1.loc[
+            projected_mocap1['Time'] <= ref_time]
+        projected_mocap_ref1 = projected_mocap_min1.loc[
+            projected_mocap_min1['Time'].idxmax()]
+        video_min2 = video2.loc[video2['Time'] <= ref_time]
+        video_ref2 = video_min2.loc[video_min2['Time'].idxmax()]
+        projected_mocap_min2 = projected_mocap2.loc[
+            projected_mocap2['Time'] <= ref_time]
+        projected_mocap_ref2 = projected_mocap_min2.loc[
+            projected_mocap_min2['Time'].idxmax()]
+    else:
+        video_ref1 = video1.iloc[0]
+        projected_mocap_ref1 = projected_mocap1.iloc[0]
+        video_ref2 = video2.iloc[0]
+        projected_mocap_ref2 = projected_mocap2.iloc[0]
+
+    rescaling_factor1 = np.linalg.norm(
+        np.asarray(
+            convert_el_to_tuple(video_ref1['LeftShoulder'])) - np.asarray(
+            convert_el_to_tuple(video_ref1['RightShoulder'])))
+    #                 / np.linalg.norm(
+    # np.asarray(
+    #     convert_el_to_tuple(
+    #         projected_mocap_ref1['LeftShoulder'])) - np.asarray(
+    #     convert_el_to_tuple(
+    #         projected_mocap_ref1['RightShoulder'])))
+    rescaling_factor2 = np.linalg.norm(
+        np.asarray(
+            convert_el_to_tuple(video_ref2['LeftShoulder'])) - np.asarray(
+            convert_el_to_tuple(video_ref2['RightShoulder'])))
+    #                 / np.linalg.norm(
+    # np.asarray(
+    #     convert_el_to_tuple(
+    #         projected_mocap_ref2['LeftShoulder'])) - np.asarray(
+    #     convert_el_to_tuple(
+    #         projected_mocap_ref2['RightShoulder'])))
+    if verbose:
+        # print(np.linalg.norm(np.asarray(
+        #     convert_el_to_tuple(video_ref2['LShoulder'])) - np.asarray(
+        #     convert_el_to_tuple(video_ref2['RShoulder']))))
+        # print(np.linalg.norm(
+        #     np.asarray(
+        #         convert_el_to_tuple(
+        #             projected_mocap_ref2['LeftShoulder'])) - np.asarray(
+        #         convert_el_to_tuple(projected_mocap_ref2['RightShoulder']))))
+        # print(np.asarray(
+        #     convert_el_to_tuple(video_ref2['LShoulder'])), np.asarray(
+        #     convert_el_to_tuple(video_ref2['RShoulder'])))
+        # print(np.asarray(
+        #     convert_el_to_tuple(projected_mocap_ref2['LeftShoulder'])),
+        #     np.asarray(
+        #         convert_el_to_tuple(projected_mocap_ref2['RightShoulder'])))
+        print('Rescaling factors: ', rescaling_factor1, rescaling_factor2)
+
+    projected_mocap1 = rescale(projected_mocap1, rescaling_factor1 * 2)
+    projected_mocap2 = rescale(projected_mocap2, rescaling_factor2 * 2)
+    return projected_mocap1, projected_mocap2
 
 
 def L2_distance_df(df1, df2, video=False):
@@ -175,16 +254,20 @@ def L2_distance_df(df1, df2, video=False):
     return np.sqrt(dist)
 
 
-def fit_translate(mocap, video, ref_time=120.0, label='Hip'):
-    video_min = video.loc[video['time'] <= ref_time]
-    video_ref = video_min.loc[video_min['time'].idxmax()]
-    mocap_min = mocap.loc[mocap['Time'] <= ref_time]
-    mocap_ref = mocap_min.loc[mocap_min['Time'].idxmax()]
+def fit_translate_ref(mocap, video, ref_frame=0, ref_time=120.0, label='Head',
+                      sampleframe=False):
+    if sampleframe == False:
+        video_min = video.loc[video['Time'] <= ref_time]
+        video_ref = video_min.loc[video_min['Time'].idxmax()]
+        mocap_min = mocap.loc[mocap['Time'] <= ref_time]
+        mocap_ref = mocap_min.loc[mocap_min['Time'].idxmax()]
+    else:
+        video_ref = video.iloc[ref_frame]
+        mocap_ref = mocap.iloc[ref_frame]
     T = np.asarray(
         convert_el_to_tuple(video_ref[label])) - np.asarray(
         convert_el_to_tuple(mocap_ref[label]))
     fitted_mocap = mocap.copy(True)
-    # TODO might not be precise enough?
 
     def translate_point(point, T):
         try:
@@ -200,20 +283,42 @@ def fit_translate(mocap, video, ref_time=120.0, label='Hip'):
     return fitted_mocap, T
 
 
+def fit_translate(mocap, video, ref_time=120.0, label='Head',
+                  sampleframe=False):
+    if sampleframe == False:
+        video_min = video.loc[video['Time'] <= ref_time]
+        video_ref = video_min.loc[video_min['Time'].idxmax()]
+        mocap_min = mocap.loc[mocap['Time'] <= ref_time]
+        mocap_ref = mocap_min.loc[mocap_min['Time'].idxmax()]
+    else:
+        video_ref = video
+        mocap_ref = mocap
+
+    for i in range(len(video_ref.values)):
+        fitted_mocap, T = fit_translate_ref(mocap, video, ref_frame=i,
+                                            ref_time=ref_time, label=label,
+                                            sampleframe=sampleframe)
+
+    return fitted_mocap, T
+
+
 def optimize_projection(mocap1, mocap2, video1, video2, vertical,
-                        label='Hip', verbose=False):
+                        label='Hip', verbose=False, sampleframe=False):
     # Only optimize pointcloud adjustment over a few samples
-    mocap1 = preprocess_mocap(mocap1).iloc[0:500:10]
-    video1 = preprocess_video(video1).iloc[0:500:10]
-    mocap2 = preprocess_mocap(mocap2).iloc[0:500:10]
-    video2 = preprocess_video(video2).iloc[0:500:10]
+    if sampleframe == False:
+        mocap1 = preprocess_mocap(mocap1).iloc[0:500:10]
+        video1 = preprocess_video(video1).iloc[0:500:10]
+        mocap2 = preprocess_mocap(mocap2).iloc[0:500:10]
+        video2 = preprocess_video(video2).iloc[0:500:10]
 
     def score_projection(theta, vertical, mocap1, mocap2, video1,
                          video2, label):
         if verbose:
             print('Before rotation: ', mocap1, mocap2)
+        # Rotate pointclouds of theta around vertical
         rotated_mocap1 = rotate_data(mocap1, theta[0], vertical)
         rotated_mocap2 = rotate_data(mocap2, theta[1], vertical)
+        # Project pointclouds
         projected_mocap1, projected_mocap2 = project3d_to_plane(
             rotated_mocap1,
             rotated_mocap2,
@@ -221,14 +326,23 @@ def optimize_projection(mocap1, mocap2, video1, video2, vertical,
             label=label)
         if verbose:
             print('After projection: ', projected_mocap1, projected_mocap2)
+        # Translate to match hips
         translated_mocap1, T1 = fit_translate(projected_mocap1, video1,
-                                          label=label)
+                                              label=label)
         translated_mocap2, T2 = fit_translate(projected_mocap2, video2,
-                                          label=label)
+                                              label=label)
         if verbose:
             print('After macro fitting: ', translated_mocap1,
                   translated_mocap2)
-        # TODO check translation after projection ok?!
+        # Rescale pointclouds
+        rescaled_mocap1, rescaled_mocap2 = rescale_pointclouds(
+            video1, video2, translated_mocap1, translated_mocap2,
+            sampleframe=sampleframe, verbose=verbose)
+        # Translate to match hips again
+        translated_mocap1, T1 = fit_translate(rescaled_mocap1, video1,
+                                              label=label)
+        translated_mocap2, T2 = fit_translate(rescaled_mocap2, video2,
+                                              label=label)
         score = L2_distance_df(translated_mocap1, video1, video=True) + \
                 L2_distance_df(translated_mocap2, video2, video=True)
         return score
@@ -239,10 +353,16 @@ def optimize_projection(mocap1, mocap2, video1, video2, vertical,
 
 
 if __name__ == '__main__':
+    sampleframe = bool(input('Only testing with a few frames (True) or with '
+                             'the whole database (False)? '))
+
     # Retrieve data from video and Mocap
     video1, video2 = data_from_csv('../Data/video_coordinates_tuples_1.csv',
                                    '../Data/video_coordinates_tuples_2.csv',
                                    video=True, sep=';')
+    if sampleframe:
+        video1 = video1.iloc[[675, 1243]]
+        video2 = video2.iloc[[675, 1243]]
     video1 = preprocess_video(video1)
     video2 = preprocess_video(video2)
     print('Video data 1: ', video1)
@@ -250,6 +370,9 @@ if __name__ == '__main__':
     mocap1, mocap2 = data_from_csv('../Data/Mocap_tuples1.csv',
                                    '../Data/Mocap_tuples2.csv', sep=';')
     # Mocap coord syst from camera: x going left, y vertical, z going outward
+    if sampleframe:
+        mocap1 = mocap1.iloc[[1492, 2824]]
+        mocap2 = mocap2.iloc[[1492, 2824]]
     mocap1 = preprocess_mocap(mocap1)
     mocap2 = preprocess_mocap(mocap2)
     print('Original mocap data 1: ', mocap1)
@@ -258,8 +381,8 @@ if __name__ == '__main__':
     # Unit tests
     vertical = np.array([0, 1, 0])
     print(rotate_point(np.array([1, 0, 0]), 1.57, np.array([0, 0, 1])))
-    print(np.linalg.norm(np.asarray(video1['RShoulder'].values[56]) -
-                         np.asarray(video2['RShoulder'].values[56])))
+    print(np.linalg.norm(np.asarray(video1['RightShoulder'].values[0]) -
+                         np.asarray(video2['RightShoulder'].values[0])))
     print(L2_distance_df(video2, video1, video=True))
     # TODO look at source data!
 
@@ -270,21 +393,31 @@ if __name__ == '__main__':
                                 video2,
                                 vertical,
                                 label='Hip',
-                                verbose=False)
+                                verbose=False,
+                                sampleframe=sampleframe)
     print('Optimization result: ', optim)
     rotated_mocap1 = rotate_data(mocap1, optim.x[0], vertical)
     rotated_mocap2 = rotate_data(mocap2, optim.x[1], vertical)
+    # rotated_mocap1 = rotate_data(mocap1, 0, vertical)
+    # rotated_mocap2 = rotate_data(mocap2, 0, vertical)
 
     # Project macrofitted pointclouds onto 2D person plane
     projected_mocap1, projected_mocap2 = project3d_to_plane(rotated_mocap1,
                                                             rotated_mocap2,
                                                             vertical,
-                                                            label='Hip')
-    fitted_mocap1, T1 = fit_translate(projected_mocap1, video1, label='Hip')
-    fitted_mocap2, T2 = fit_translate(projected_mocap2, video2, label='Hip')
+                                                            label='Head')
+    fitted_mocap1, T1 = fit_translate(projected_mocap1, video1, label='Head')
+    fitted_mocap2, T2 = fit_translate(projected_mocap2, video2, label='Head')
+    fitted_mocap1, fitted_mocap2 = rescale_pointclouds(video1, video2,
+                                                       fitted_mocap1,
+                                                       fitted_mocap2,
+                                                       sampleframe=sampleframe,
+                                                       verbose=True)
+    fitted_mocap1, T1 = fit_translate(fitted_mocap1, video1, label='Head')
+    fitted_mocap2, T2 = fit_translate(fitted_mocap2, video2, label='Head')
 
     # Record results
-    os.makedirs('../Data/Results', exist_ok=False)
+    os.makedirs('../Data/Results', exist_ok=True)
     fitted_mocap1.to_csv('../Data/Results/Projected_mocap1.csv', sep=';')
     fitted_mocap2.to_csv('../Data/Results/Projected_mocap2.csv', sep=';')
     print('Projected mocap data 1: ', fitted_mocap1)
@@ -294,3 +427,113 @@ if __name__ == '__main__':
         print('', file=text_file)
         print('Translation of mocap 1', T1, file=text_file)
         print('Translation of mocap 2', T2, file=text_file)
+
+    # Visualization of person 1
+    plt.figure(1)
+    plt.title('Video: person 1, frame 1')
+    for col in video1.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(video1[col].values)[0][0],
+                    np.asarray(video1[col].values)[0][1],
+                    label=col)
+    plt.legend()
+    plt.savefig('../Data/Results/Onlyvideo_person1_frame1.pdf')
+    plt.show()
+
+    plt.figure(2)
+    plt.title('Spatial fitting: person 1, frame 1')
+    for col in fitted_mocap1.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(fitted_mocap1[col].values)[0][0],
+                    np.asarray(fitted_mocap1[col].values)[0][1],
+                    c='b')
+        plt.scatter(np.asarray(video1[col].values)[0][0],
+                    np.asarray(video1[col].values)[0][1],
+                    c='r')
+    plt.legend()
+    plt.savefig('../Data/Results/Plot_person1_frame1.pdf')
+    plt.show()
+
+    plt.figure(3)
+    plt.title('Video: person 1, frame 2')
+    for col in video1.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(video1[col].values)[1][0],
+                    np.asarray(video1[col].values)[1][1],
+                    label=col)
+    plt.legend()
+    plt.savefig('../Data/Results/Onlyvideo_person1_frame2.pdf')
+    plt.show()
+
+    plt.figure(4)
+    plt.title('Spatial fitting: person 1, frame 2')
+    for col in fitted_mocap1.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(fitted_mocap1[col].values)[1][0],
+                    np.asarray(fitted_mocap1[col].values)[1][1],
+                    c='b')
+        plt.scatter(np.asarray(video1[col].values)[1][0],
+                    np.asarray(video1[col].values)[1][1],
+                    c='r')
+    plt.legend()
+    plt.savefig('../Data/Results/Plot_person1_frame2.pdf')
+    plt.show()
+
+    # Visualization of person 2
+    plt.figure(5)
+    plt.title('Video: person 2, frame 1')
+    for col in video2.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(video2[col].values)[0][0],
+                    np.asarray(video2[col].values)[0][1],
+                    label=col)
+    plt.legend()
+    plt.savefig('../Data/Results/Onlyvideo_person2_frame1.pdf')
+    plt.show()
+
+    plt.figure(6)
+    plt.title('Spatial fitting: person 2, frame 1')
+    for col in fitted_mocap2.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(fitted_mocap2[col].values)[0][0],
+                    np.asarray(fitted_mocap2[col].values)[0][1],
+                    c='b')
+        plt.scatter(np.asarray(video2[col].values)[0][0],
+                    np.asarray(video2[col].values)[0][1],
+                    c='r')
+    plt.legend()
+    plt.savefig('../Data/Results/Plot_person2_frame1.pdf')
+    plt.show()
+
+    plt.figure(7)
+    plt.title('Video: person 2, frame 2')
+    for col in video2.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(video2[col].values)[1][0],
+                    np.asarray(video2[col].values)[1][1],
+                    label=col)
+    plt.legend()
+    plt.savefig('../Data/Results/Onlyvideo_person2_frame2.pdf')
+    plt.show()
+
+    plt.figure(8)
+    plt.title('Spatial fitting: person 2, frame 2')
+    for col in fitted_mocap2.columns:
+        if col in ['Time', 'time', 'Type']:
+            continue
+        plt.scatter(np.asarray(fitted_mocap2[col].values)[1][0],
+                    np.asarray(fitted_mocap2[col].values)[1][1],
+                    c='b')
+        plt.scatter(np.asarray(video2[col].values)[1][0],
+                    np.asarray(video2[col].values)[1][1],
+                    c='r')
+    plt.legend()
+    plt.savefig('../Data/Results/Plot_person2_frame2.pdf')
+    plt.show()
